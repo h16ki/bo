@@ -1,0 +1,3 @@
+class GP_UCB:
+  def __init__(self):
+    ...
