@@ -51,7 +51,7 @@ class RBF(Kernel):
 
   def kernel(self, x, y, gamma):
     z = x - y
-    return np.exp(-gamma * z * z)
+    return np.exp(-gamma * np.dot(z, z))
 
 
 class Matern(Kernel):
