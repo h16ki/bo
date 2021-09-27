@@ -34,7 +34,7 @@ class GaussianProcessRegression(Regressor):
       train_outputs: numpy.arraylike
         Data set of train inputs and outputs
     """
-        self.meanfunc = mean
+        self.mean = mean
         self.covariance = covariance
         self.train_inputs = np.array(train_inputs, dtype=np.float64)
         self.train_outputs = np.array(train_outputs, dtype=np.float64)
@@ -46,27 +46,29 @@ class GaussianProcessRegression(Regressor):
             # add a small noise (std=0.1) to avoid a negative eigenvalue
             self.noise = self.get_noise(len(train_inputs))
 
-        self.mean = mean(train_inputs)
-        print("debug:", mean)
+        output_shape = np.shape(train_outputs)
+        self.mu = mean(shape=output_shape)
+        # print("debug:", self.mu)
         self.Kt = lambda inputs: covariance(inputs, train_inputs)
         self.Ktt = covariance(train_inputs, train_inputs)
-        print("debug:", self.Ktt)
+        # print("debug:", self.Ktt)
 
     def pdf(self, inputs):
-        bare_mean = self.meanfunc(inputs)
-        bare_covariance = self.covariance(inputs, inputs) + self.get_noise(len(inputs))
+        output_shape = len(inputs)
+        prior_mean = self.mean(shape=output_shape)
+        prior_covariance = self.covariance(inputs, inputs) + self.get_noise(len(inputs))
+
         offdiag_covariance = self.Kt(inputs)
-        z = self.train_outputs - self.mean
+        z = self.train_outputs - self.mu
         train_covariance = self.Ktt + self.noise
-        # mean = self.meanfunc(inputs) + self.Kt(inputs) @ self.precision @ (self.train_outputs - self.mu)
-        conditional_mean = bare_mean + offdiag_covariance @ np.linalg.solve(
+        conditional_mean = prior_mean + offdiag_covariance @ np.linalg.solve(
             train_covariance, z
         )
         # cov = self.covariance(inputs, inputs) - self.Kt(inputs) @ self.precision @ self.Kt(inputs).T
         # temp = sp.linalg.solve(self.Ktt, self.Kt(inputs).T)
         # cov = self.covariance(inputs, inputs) + self.white_noise(len(inputs)) - self.Kt(inputs) @ self.precision @ self.Kt(inputs).T
         
-        conditional_covariance = bare_covariance - offdiag_covariance @ np.linalg.solve(
+        conditional_covariance = prior_covariance - offdiag_covariance @ np.linalg.solve(
             train_covariance, offdiag_covariance.T
         )
 
@@ -87,8 +89,6 @@ if __name__ == "__main__":
     import kernels, means
 
 
-    cov = kernels.RBF(gamma=1.0)
-    mean = means.ZeroMean()
 
     x = test_x = np.pi * np.linspace(-1, 1, 100)
     y = np.sin(x)
@@ -100,6 +100,10 @@ if __name__ == "__main__":
 
     train_x = [-1, 0, 1]
     train_y = np.sin(train_x)
+    output_shape = np.shape(train_y)
+
+    cov = kernels.RBF(gamma=1.0)
+    mean = means.ZeroMean()
 
     print("input:", train_x)
     print("output:", train_y)
@@ -122,15 +126,18 @@ if __name__ == "__main__":
 
 
     # 2d check
-    print("Gaussian process regression for single-valiable black box function.")
+    print("\n2d inputs case")
     train_x = [[-1, -1], [0, 0], [1, 1]]
-    train_y = (lambda x: np.sin(x[0]) * np.sin(x[1]))(train_x)
+    train_y = list(map(lambda x: np.sin(x[0]) * np.sin(x[1]), train_x))
+    output_shape = np.shape(train_y)
 
-    gpr = GaussianProcessRegression(mean, cov, train_x, train_y)
-    pmean, pcov = gpr([[0.0, 0.0], [1, 1]])
-    print("conditional mean:", pmean.shape)
-    print("conditional covariance:", pcov.shape)
+    cov = kernels.RBF(gamma=1.0)
+    mean = means.ZeroMean()
 
-    foo = [0, 0]
-    bar = kernels.RBF(1.0)(train_x, train_x)
-    print(bar)
+    # prediction at a point (0.0, 0.0)
+    gp = GaussianProcessRegression(mean, cov, train_x, train_y)
+    points = ((0.0, 0.0),)
+    pmean, pcov = gp(points)
+    print("conditional mean:", pmean)
+    print("conditional covariance:", pcov)
+

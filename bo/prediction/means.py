@@ -2,28 +2,20 @@ import numpy as np
 from typing import Sequence
 
 
-class MeanBase:
+class Mean:
     def __init__(self, hyp=None):
         self.hyp = hyp
 
-    def __call__(self, x):
-        return self.function(x)
+    def __call__(self, shape, *args):
+        return self.impl(shape, *args)
 
-    def function(self, x):
+    def impl(self):
         raise NotImplementedError
 
 
-class ZeroMean(MeanBase):
-    def __init__(self):
-        super(ZeroMean, self).__init__()
-
-    def function(self, x):
-        if isinstance(x, Sequence):
-            n = np.shape(x)
-        else:
-            n = len(x)
-
-        return np.zeros(n)
+class ZeroMean(Mean):
+    def impl(self, shape, *args):
+        return np.zeros(shape)
 
 
 if __name__ == "__main__":
