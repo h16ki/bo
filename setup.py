@@ -17,7 +17,7 @@ DESCRIPTION = 'My short description for my project.'
 URL = 'https://github.com/h16ki/bo.git'
 EMAIL = 'me@example.com'
 AUTHOR = 'Awesome Soul'
-REQUIRES_PYTHON = '>=3.8.0'
+REQUIRES_PYTHON = '>=3.6.0'
 VERSION = '0.1.2'
 
 # What packages are required for this module to be executed?
