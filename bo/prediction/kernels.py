@@ -7,8 +7,8 @@ from numbers import Number
 
 
 class Kernel:
-  def __init__(self, hpp):
-    self.hpp = hpp
+  def __init__(self, args=None):
+    self.args = args
 
   def __call__(self, x, y):
     x, y = list(map(self.toNpArray, [x, y]))
@@ -17,7 +17,7 @@ class Kernel:
     K = np.empty([row, column])
     for i in range(row):
         for j in range(column):
-            K[i][j] = self.kernel(x[i], y[j], self.hpp)
+            K[i][j] = self.kernel(x[i], y[j])
 
     return K
 
@@ -30,28 +30,32 @@ class Kernel:
   def kernel(self, x, y, *args, **kwargs):
     return NotImplementedError
 
+  def __add__(self, other):
+    return lambda x, y: self(x, y) + other(x, y)
+
+  def __radd__(self, other):
+    return lambda x, y: self(x, y) + other(x, y)
 
 
 class Scale(Kernel):
   def __init__(self, scale: Number, k: Kernel):
     super(Scale, self).__init__(scale)
-    self.basekernel = k
+    self.rescaled_kernel = k
 
   def kernel(self, x, y, scale):
-    return scale * self.basekernel(x, y)
+    return scale * self.rescaled_kernel(x, y)
+
+  def grad(self, x, y):
+    return self.rescaled_kernel(x, y)
 
 
 
 
 class RBF(Kernel):
   """RBF kernel."""
-  def __init__(self, gamma):
-    super(RBF, self).__init__(gamma)
-
-
-  def kernel(self, x, y, gamma):
-    z = x - y
-    return np.exp(-gamma * np.dot(z, z))
+  def kernel(self, x, y):
+    z = np.asarray(x) - np.asarray(y)
+    return np.exp(-self.args * np.dot(z, z))
 
 
 class Matern(Kernel):
@@ -93,3 +97,27 @@ class Matern(Kernel):
   def materninf(self, r, theta):
     return np.exp(-0.5 / theta**2 * r**2)
 
+class RationalQuad(Kernel):
+  ...
+
+class DotProduct(Kernel):
+  def kernel(self, x, y, *args, **kwargs):
+    x = np.asarray(x)
+    y = np.asarray(y)
+    return np.dot(x, y)
+
+class ARD(Kernel):
+  def kernel(self, x, y):
+    rbf = RBF(1.0)
+    
+
+
+
+if __name__ == "__main__":
+  a = [[1.0, 2.0], [2.1, 4.2], [2.5, 3.0]]
+  b = [[4.12, 3.1], [32, 3.3], [-4, 10]]
+  dp = DotProduct()
+  print(dp(a, b))
+
+  rbf = RBF(1.0)
+  print(rbf(a, b))

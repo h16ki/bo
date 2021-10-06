@@ -1,3 +1,4 @@
+from typing import DefaultDict
 import numpy as np
 import scipy as sp
 
@@ -17,6 +18,10 @@ class Regressor:
 
     def pdf(self, inputs, *args, **kwargs):
         raise NotImplementedError
+
+    def loglikelihood(self):
+        print(f"{self.Ktt}")
+        pass
 
 
 class GaussianProcessRegression(Regressor):
@@ -76,8 +81,42 @@ class GaussianProcessRegression(Regressor):
         # conditional_mean = offdiag_covariance
         return conditional_mean, conditional_covariance
 
-    def get_noise(self, N, cov=0.01):
+    def get_noise(self, N, cov=1e-6):
         return cov * np.eye(N)
+
+    def __enter__(self):
+        print(f"Automatic Relevance Determination.")
+        print(f"Initial parameter guess: {self.covariance.args}")
+        # dLdp = self.loglikelihood().param_grad()
+        x = np.asarray(self.train_inputs)
+        
+        step = 1_000
+        tol = 1e-6
+        p = self.covariance.args
+        dp = 1
+        r = 0.1
+        for _ in range(step):
+            dKdp = - np.outer(x, x) @ self.Ktt
+            dLdp = -np.trace(np.linalg.solve(self.Ktt, dKdp)) + \
+                (np.linalg.solve(self.Ktt, self.train_outputs).T @ dKdp @ np.linalg.solve(self.Ktt, self.train_outputs))
+
+            if dp < tol:
+                break
+            else:
+                dp = p
+                p = p - r * dLdp    # GD method
+                dp = abs(dp - p)
+
+            self.covariance.args = p
+
+        print(f"{self.covariance.args}")
+
+
+
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        # print(f'exit: {exc_type}, {exc_value}, {traceback}')
+        return self
 
 
 
@@ -98,22 +137,24 @@ if __name__ == "__main__":
     print("Data space")
     print("----------------------------")
 
-    train_x = [-1, 0, 1]
+    # train_x = [-1, 0, 1]
+    np.random.seed(1)
+    train_x = np.random.uniform(-3, 3, 5)
     train_y = np.sin(train_x)
     output_shape = np.shape(train_y)
 
-    cov = kernels.RBF(gamma=1.0)
+    cov = kernels.RBF(args=1.0)
     mean = means.ZeroMean()
 
     print("input:", train_x)
     print("output:", train_y)
     print("----------------------------")
 
-    gpr = GaussianProcessRegression(mean, cov, train_x, train_y)
-    print("")
-    pmean, pcov = gpr([0.0])
-    print("conditional mean:", pmean)
-    print("conditional covariance:", pcov)
+    with GaussianProcessRegression(mean, cov, train_x, train_y) as gp:
+        print("")
+        pmean, pcov = gp([0.0])
+        print("conditional mean:", pmean)
+        print("conditional covariance:", pcov)
     # pred_mean, pred_cov = gpr(test_x)
     # print(max(pred_mean - y))
     # print(min(pred_mean - y))
