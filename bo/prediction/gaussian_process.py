@@ -81,7 +81,7 @@ class GaussianProcessRegression(Regressor):
         # conditional_mean = offdiag_covariance
         return conditional_mean, conditional_covariance
 
-    def get_noise(self, N, cov=1e-6):
+    def get_noise(self, N, cov=0.0):
         return cov * np.eye(N)
 
     def __enter__(self):
